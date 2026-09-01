@@ -8,6 +8,8 @@ reports/
 
 # go
 api/bin/
+api/*.exe
+api/api
 
 # python
 worker/__pycache__/
