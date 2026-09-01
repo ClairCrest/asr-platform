@@ -8,19 +8,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/ClairCrest/asr-platform/api/internal/metrics"
 )
 
 const reconnectDelay = 2 * time.Second
 
+// terminalStatuses are the job_events event types that also mark a job's
+// jobs.status as terminal — the only ones metrics cares about.
+var terminalStatuses = map[string]bool{"succeeded": true, "failed": true, "cancelled": true}
+
 // notification mirrors the JSON object built by the notify_job_event()
-// trigger (migration 000008): job id, owning user id, event type, the
-// event's own payload, and its timestamp.
+// trigger (migrations 000008, extended by 000009): job id, owning user
+// id, event type, the event's own payload, its timestamp, and — for
+// metrics, not the WebSocket feed — the job's audio duration and the
+// wall-clock time elapsed since it was created.
 type notification struct {
-	JobID     uuid.UUID       `json:"job_id"`
-	UserID    uuid.UUID       `json:"user_id"`
-	EventType string          `json:"event_type"`
-	Payload   json.RawMessage `json:"payload"`
-	CreatedAt time.Time       `json:"created_at"`
+	JobID           uuid.UUID       `json:"job_id"`
+	UserID          uuid.UUID       `json:"user_id"`
+	EventType       string          `json:"event_type"`
+	Payload         json.RawMessage `json:"payload"`
+	CreatedAt       time.Time       `json:"created_at"`
+	DurationSeconds *float64        `json:"duration_seconds"`
+	ElapsedSeconds  float64         `json:"elapsed_seconds"`
 }
 
 // Listener holds a dedicated Postgres connection LISTENing on the
@@ -91,4 +101,23 @@ func (l *Listener) handle(payload string) {
 	}
 
 	l.hub.BroadcastToUser(n.UserID, msg)
+	l.recordMetrics(n)
+}
+
+func (l *Listener) recordMetrics(n notification) {
+	// "created" only fires on a genuine new row — job.Service.Create
+	// returns early on an idempotency-key replay, before writing any
+	// event — so this can't double-count retried submissions.
+	if n.EventType == "created" {
+		metrics.JobsSubmittedTotal.Inc()
+		return
+	}
+	if !terminalStatuses[n.EventType] {
+		return
+	}
+	metrics.JobsCompletedTotal.WithLabelValues(n.EventType).Inc()
+	metrics.JobDurationSeconds.Observe(n.ElapsedSeconds)
+	if n.EventType == "succeeded" && n.DurationSeconds != nil {
+		metrics.AudioSecondsProcessedTotal.Add(*n.DurationSeconds)
+	}
 }

@@ -12,6 +12,7 @@ REQUIRED_ENV = {
     "S3_USE_SSL": "false",
     "WORKER_MODEL": "small.en",
     "WORKER_CONCURRENCY": "1",
+    "WORKER_METRICS_PORT": "9091",
 }
 
 

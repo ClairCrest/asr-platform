@@ -1,0 +1,37 @@
+# Scales the worker Deployment on Redis Stream backlog rather than CPU:
+# a worker spends most of its CPU budget inside faster-whisper, so CPU
+# usage tracks "is this replica busy" far better than "how much work is
+# queued" — a burst of 50 jobs should scale out immediately, not once
+# CPU catches up. Requires the KEDA operator (see Makefile's kind-up /
+# docs/adr for the CPU-based HPA alternative in overlays/cloud for
+# clusters that don't have it installed).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker
+  namespace: asr-platform
+spec:
+  scaleTargetRef:
+    name: worker
+  minReplicaCount: 1
+  maxReplicaCount: 8
+  cooldownPeriod: 60
+  pollingInterval: 5
+  triggers:
+    - type: redis-streams
+      metadata:
+        # Fully qualified, not just "redis": the KEDA operator resolves
+        # this from its own pod in the keda namespace, not from a pod in
+        # asr-platform, so the bare Service name (which relies on the
+        # querying pod's own namespace being in the DNS search path) does
+        # not resolve — confirmed by keda-operator logging exactly that
+        # DNS failure with the short name.
+        address: redis.asr-platform.svc.cluster.local:6379
+        stream: jobs:pending
+        consumerGroup: workers
+        pendingEntriesCount: "5"
+        # activationLagCount keeps a single worker parked at min replicas
+        # when the stream is idle instead of scaling to 0 — this project
+        # has no cold-start budget for the ~2-3s faster-whisper model
+        # load, so min stays 1 rather than letting KEDA scale to 0.
+        lagCount: "5"

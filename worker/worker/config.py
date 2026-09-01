@@ -26,6 +26,7 @@ class Config:
 
     model: str
     concurrency: int
+    metrics_port: int
 
 
 def load() -> Config:
@@ -39,6 +40,7 @@ def load() -> Config:
         s3_use_ssl=_require_bool("S3_USE_SSL"),
         model=_require("WORKER_MODEL"),
         concurrency=_require_int("WORKER_CONCURRENCY"),
+        metrics_port=_require_int("WORKER_METRICS_PORT"),
     )
 
 
