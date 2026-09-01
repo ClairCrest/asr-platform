@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: asr-platform
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: asr-platform
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: asr-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: asr-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: asr-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "asr", "-d", "asr"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "asr", "-d", "asr"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          # No runAsNonRoot/runAsUser override here: the official postgres
+          # image's entrypoint needs to start as root to chown/chmod the
+          # PVC-mounted data directory (kind's local-path-provisioner
+          # creates it root-owned; fsGroup alone only fixes the group,
+          # not the owner) before it drops privileges to the postgres
+          # user itself via gosu. Forcing a non-root UID here pre-empts
+          # that self-managed privilege drop and initdb fails with
+          # "Operation not permitted" trying to chmod a directory it
+          # doesn't own. allowPrivilegeEscalation:false still applies.
+          securityContext:
+            allowPrivilegeEscalation: false
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: asr-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: asr-worker:local
+          envFrom:
+            - configMapRef:
+                name: asr-config
+            - secretRef:
+                name: asr-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          # No HTTP surface to probe: the worker is a bare consumer loop.
+          # Liveness is enforced structurally instead — a worker that
+          # dies mid-job leaves its lease to expire, and the API's
+          # reaper (internal/queue.Reaper) requeues the job for another
+          # replica, so a wedged pod costs a lease's worth of delay
+          # rather than a stuck job. Kubernetes still restarts a crashed
+          # container via the default restart policy.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

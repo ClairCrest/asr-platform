@@ -6,6 +6,10 @@ github_token
 data/
 reports/
 
+# staged copy of api/internal/store/migrations, populated by
+# `make k8s-migrations` for the db-migrations ConfigMap generator
+deploy/k8s/base/migrations/
+
 # go
 api/bin/
 api/*.exe

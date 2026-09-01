@@ -57,11 +57,12 @@ func run(logger *slog.Logger) error {
 	}
 
 	objects, err := objectstore.New(ctx, objectstore.Config{
-		Endpoint:  cfg.S3Endpoint,
-		AccessKey: cfg.S3AccessKey,
-		SecretKey: cfg.S3SecretKey,
-		Bucket:    cfg.S3Bucket,
-		UseSSL:    cfg.S3UseSSL,
+		Endpoint:       cfg.S3Endpoint,
+		AccessKey:      cfg.S3AccessKey,
+		SecretKey:      cfg.S3SecretKey,
+		Bucket:         cfg.S3Bucket,
+		UseSSL:         cfg.S3UseSSL,
+		PublicEndpoint: cfg.S3PublicEndpoint,
 	})
 	if err != nil {
 		return err

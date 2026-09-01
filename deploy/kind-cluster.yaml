@@ -1,0 +1,22 @@
+# kind + ingress-nginx, following kind's own documented recipe:
+# https://kind.sigs.k8s.io/docs/user/ingress/
+# The extraPortMappings put the cluster's ingress controller on the host
+# at localhost:8080, which is the URL the phase 4 acceptance criteria
+# checks against.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP

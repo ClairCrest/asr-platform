@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres.yaml
+  - redis.yaml
+  - minio.yaml
+  - api.yaml
+  - worker.yaml
+  - web.yaml
+  - ingress.yaml
+
+# The migration init container (api.yaml) reads these as flat files from
+# a mounted volume. kustomize refuses to read configMapGenerator sources
+# from outside its own root, so `make kind-up`/`make k8s-migrations`
+# stages a copy at ./migrations/ before building — see the Makefile.
+# api/internal/store/migrations stays the one source of truth; this
+# directory is gitignored, never edited directly.
+configMapGenerator:
+  - name: db-migrations
+    namespace: asr-platform
+    files:
+      - migrations/000001_users.up.sql
+      - migrations/000001_users.down.sql
+      - migrations/000002_api_keys.up.sql
+      - migrations/000002_api_keys.down.sql
+      - migrations/000003_jobs.up.sql
+      - migrations/000003_jobs.down.sql
+      - migrations/000004_transcripts.up.sql
+      - migrations/000004_transcripts.down.sql
+      - migrations/000005_segments.up.sql
+      - migrations/000005_segments.down.sql
+      - migrations/000006_job_events.up.sql
+      - migrations/000006_job_events.down.sql
+      - migrations/000007_jobs_deleted_at.up.sql
+      - migrations/000007_jobs_deleted_at.down.sql
+      - migrations/000008_job_events_notify.up.sql
+      - migrations/000008_job_events_notify.down.sql
