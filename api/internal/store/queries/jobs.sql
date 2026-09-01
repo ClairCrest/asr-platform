@@ -55,3 +55,20 @@ RETURNING *;
 UPDATE jobs
 SET deleted_at = now()
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
+
+-- name: ListExpiredLeases :many
+SELECT * FROM jobs
+WHERE status = 'processing' AND lease_expires_at < now() AND deleted_at IS NULL;
+
+-- name: RequeueExpiredJob :one
+UPDATE jobs
+SET status = 'queued', attempts = attempts + 1, worker_id = NULL, lease_expires_at = NULL
+WHERE id = $1 AND status = 'processing'
+RETURNING *;
+
+-- name: FailExpiredJob :one
+UPDATE jobs
+SET status = 'failed', attempts = attempts + 1,
+    error_code = $2, error_message = $3, finished_at = now()
+WHERE id = $1 AND status = 'processing'
+RETURNING *;
