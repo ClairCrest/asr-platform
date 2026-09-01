@@ -1,0 +1,37 @@
+# Not wired into this overlay's `resources:` by default — a plain HPA
+# and a KEDA ScaledObject both drive spec.replicas on the same
+# Deployment, so running both at once means they fight each other. Use
+# this instead of the ../../components/keda-scaling component (see
+# overlays/local/kustomization.yaml) on a cluster where the KEDA
+# operator isn't installed and installing it isn't an option: add
+#   - hpa-fallback.yaml
+# to this file's `resources:` list, and don't add the keda-scaling
+# component alongside it.
+#
+# CPU is a much coarser signal than KEDA's Redis Stream backlog — a
+# worker's CPU only climbs once faster-whisper is actually running, so
+# this reacts to a burst noticeably slower than the queue-depth trigger
+# does. Good enough as a fallback; not a substitute when KEDA is
+# available.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: asr-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60

@@ -12,8 +12,11 @@ import (
 )
 
 // StreamName is the Redis Stream jobs are published to. Workers consume it
-// via the "workers" consumer group.
-const StreamName = "jobs:pending"
+// via the ConsumerGroup group (see worker/client.py's matching constant).
+const (
+	StreamName    = "jobs:pending"
+	ConsumerGroup = "workers"
+)
 
 type Producer struct {
 	rdb *redis.Client

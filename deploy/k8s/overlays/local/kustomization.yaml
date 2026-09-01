@@ -3,6 +3,15 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - prometheus.yaml
+  - grafana.yaml
+
+# KEDA's CRDs must already exist in the cluster (make kind-up installs
+# the operator before this overlay is applied) — not in base/, since
+# base is meant to stay applicable to a cluster that doesn't have KEDA
+# (see overlays/cloud's CPU-based HPA fallback for that case).
+components:
+  - ../../components/keda-scaling
 
 # Presigned URLs must be signed against a host the browser can actually
 # reach — base's S3_ENDPOINT (minio:9000) is cluster-internal DNS. The
@@ -15,6 +24,13 @@ configMapGenerator:
     behavior: merge
     literals:
       - S3_PUBLIC_ENDPOINT=localhost:8080
+  # The dashboard JSON committed to the repo (source of truth is the
+  # file, not this generator) — Grafana's file provisioner (grafana.yaml)
+  # loads whatever lands in /var/lib/grafana/dashboards.
+  - name: grafana-dashboard-asr-platform
+    namespace: asr-platform
+    files:
+      - dashboards/asr-platform.json
 
 # `make kind-up` builds these tags locally and `kind load docker-image`s
 # them straight into the cluster's node — there is no registry to pull

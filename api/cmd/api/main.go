@@ -12,12 +12,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ClairCrest/asr-platform/api/internal/auth"
 	"github.com/ClairCrest/asr-platform/api/internal/config"
 	httpapi "github.com/ClairCrest/asr-platform/api/internal/http"
 	"github.com/ClairCrest/asr-platform/api/internal/job"
+	"github.com/ClairCrest/asr-platform/api/internal/metrics"
 	"github.com/ClairCrest/asr-platform/api/internal/objectstore"
 	"github.com/ClairCrest/asr-platform/api/internal/observability"
 	"github.com/ClairCrest/asr-platform/api/internal/queue"
@@ -82,6 +85,11 @@ func run(logger *slog.Logger) error {
 	go listener.Run(ctx)
 	wsHandler := ws.NewHandler(hub, tokens, logger, cfg.CORSAllowedOrigins)
 
+	metricsRegistry := prometheus.NewRegistry()
+	metrics.Register(metricsRegistry)
+	metricsCollector := queue.NewMetricsCollector(rdb, logger)
+	go metricsCollector.Run(ctx, 10*time.Second)
+
 	router := httpapi.NewRouter(httpapi.Deps{
 		Logger:             logger,
 		AuthSvc:            authSvc,
@@ -106,10 +114,29 @@ func run(logger *slog.Logger) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// A separate port for /metrics, per PLAN.md section 4: scraping
+	// shouldn't share a listener with real traffic's auth/rate-limit
+	// middleware, and a slow scrape shouldn't compete with request
+	// handling for the same server's connection limits.
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.HandlerFor(metricsRegistry, promhttp.HandlerOpts{}))
+	metricsSrv := &http.Server{
+		Addr:         ":" + cfg.MetricsPort,
+		Handler:      metricsMux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("asr-platform api starting", "port", cfg.APIPort)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+	go func() {
+		logger.Info("asr-platform metrics starting", "port", cfg.MetricsPort)
+		if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -126,5 +153,6 @@ func run(logger *slog.Logger) error {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
+	_ = metricsSrv.Shutdown(shutdownCtx)
 	return srv.Shutdown(shutdownCtx)
 }

@@ -17,5 +17,6 @@ data:
   # (worker/Dockerfile's WORKER_MODEL build arg) — see the comment there.
   WORKER_MODEL: "small.en"
   WORKER_CONCURRENCY: "1"
+  WORKER_METRICS_PORT: "9091"
   POSTGRES_USER: "asr"
   POSTGRES_DB: "asr"

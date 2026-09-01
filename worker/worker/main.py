@@ -16,7 +16,7 @@ import time
 
 import redis
 
-from worker import audio, client, config
+from worker import audio, client, config, metrics
 from worker.errors import TranscriptionError
 from worker.store import (
     claim_next,
@@ -81,7 +81,16 @@ def process_job(
         return
 
     logger.info("job %s claimed, downloading %s", claimed.id, claimed.object_key)
+    metrics.worker_busy.set(1)
+    try:
+        _transcribe_and_store(conn, mc, bucket, rdb, transcriber, claimed)
+    finally:
+        metrics.worker_busy.set(0)
 
+
+def _transcribe_and_store(
+    conn, mc, bucket: str, rdb: redis.Redis, transcriber: Transcriber, claimed
+) -> None:
     with LeaseRenewer(conn, claimed.id), tempfile.TemporaryDirectory() as tmp_dir:
         src_path = os.path.join(tmp_dir, "source")
         wav_path = os.path.join(tmp_dir, "normalized.wav")
@@ -116,6 +125,7 @@ def process_job(
     )
     insert_segments(conn, transcript_id, result.segments)
     complete_job(conn, claimed.id, info.duration_seconds)
+    metrics.worker_rtf.set(result.real_time_factor)
     logger.info(
         "job %s succeeded: rtf=%.2f language=%s (%.2f)",
         claimed.id,
@@ -133,6 +143,8 @@ def run() -> None:
     consumer_name = this_worker_id
 
     logger.info("asr-worker starting, model=%s, worker_id=%s", cfg.model, this_worker_id)
+    metrics.start(cfg.metrics_port)
+    metrics.worker_busy.set(0)
 
     conn = client.connect_db(cfg)
     rdb = client.connect_redis(cfg)

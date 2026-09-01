@@ -28,6 +28,9 @@ spec:
     metadata:
       labels:
         app: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
     spec:
       # Runs migrations before every rollout of a new api version, since
       # there's no Helm here to hang a pre-install/pre-upgrade hook off
@@ -62,13 +65,21 @@ spec:
                 name: asr-config
             - secretRef:
                 name: asr-secrets
+          # memory limit sized for concurrent argon2id password hashing,
+          # not just steady-state traffic: internal/auth.HashPassword
+          # costs 64MiB per concurrent call by design (memory-hardness is
+          # the point of argon2id), so several concurrent registrations
+          # or logins can spike well past a limit sized for ordinary
+          # request handling alone. 256Mi OOM-killed this pod (exit 137)
+          # under a load test that init hit it with several concurrent
+          # registrations at once — see deploy/load-test/k6/load-test.js.
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 192Mi
             limits:
               cpu: 500m
-              memory: 256Mi
+              memory: 512Mi
           readinessProbe:
             httpGet:
               path: /readyz
