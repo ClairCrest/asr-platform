@@ -25,7 +25,12 @@ def connect_db(cfg: Config) -> psycopg.Connection:
 
 
 def connect_redis(cfg: Config) -> redis.Redis:
-    client = redis.Redis.from_url(f"redis://{cfg.redis_addr}", decode_responses=True)
+    # socket_timeout must exceed the XREADGROUP BLOCK duration (see main.BLOCK_MS)
+    # or the client raises a spurious TimeoutError while a blocking read is
+    # legitimately waiting on the server for new stream entries.
+    client = redis.Redis.from_url(
+        f"redis://{cfg.redis_addr}", decode_responses=True, socket_timeout=30
+    )
     client.ping()
     try:
         client.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="0", mkstream=True)

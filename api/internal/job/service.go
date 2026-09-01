@@ -96,13 +96,19 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (Job, error) {
 		return Job{}, err
 	}
 
-	if err := s.queue.Enqueue(ctx, created.ID); err != nil {
-		return Job{}, fmt.Errorf("job: enqueue: %w", err)
-	}
-
+	// The DB status must move to queued before the Redis message goes out:
+	// a worker can dequeue and claim a job the instant it sees the
+	// message, and claim_next only matches status IN ('queued',
+	// 'retrying'). Enqueueing first raced a fast worker against this
+	// update and lost — the worker saw the job "no longer claimable"
+	// while it was still pending.
 	queued, err := s.transition(ctx, created.ID, StatusQueued, EventQueued)
 	if err != nil {
 		return Job{}, err
+	}
+
+	if err := s.queue.Enqueue(ctx, created.ID); err != nil {
+		return Job{}, fmt.Errorf("job: enqueue: %w", err)
 	}
 	return queued, nil
 }
