@@ -22,9 +22,10 @@ web/node_modules/
 web/dist/
 scripts/node_modules/
 
-# manual UI verification artifacts (scripts/ui-smoke.mjs)
+# manual UI verification artifacts (scripts/ui-smoke.mjs, ui-live-update-check.mjs)
 scripts/screenshots/
 scripts/sample-speech.wav
+scripts/live-update-final.png
 scripts/package.json
 scripts/package-lock.json
 
