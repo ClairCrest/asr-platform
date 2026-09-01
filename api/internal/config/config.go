@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,11 @@ type Config struct {
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
+
+	// CORSAllowedOrigins lets the browser-based dashboard, served from a
+	// different origin than the API (nginx container vs API container in
+	// every environment except a shared reverse proxy), make requests here.
+	CORSAllowedOrigins []string
 }
 
 // Load reads and validates every environment variable the API needs.
@@ -71,6 +77,11 @@ func Load() (Config, error) {
 	if cfg.RefreshTokenTTL, err = requireEnvDuration("REFRESH_TOKEN_TTL"); err != nil {
 		return Config{}, err
 	}
+	origins, err := requireEnv("CORS_ALLOWED_ORIGINS")
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.CORSAllowedOrigins = strings.Split(origins, ",")
 
 	return cfg, nil
 }

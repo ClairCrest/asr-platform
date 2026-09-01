@@ -60,6 +60,17 @@ func (c *Client) PresignPutURL(ctx context.Context, objectKey string) (string, e
 	return u.String(), nil
 }
 
+// PresignGetURL returns a time-limited URL the dashboard's audio player
+// can stream the source file from directly, without the API proxying the
+// audio body.
+func (c *Client) PresignGetURL(ctx context.Context, objectKey string) (string, error) {
+	u, err := c.mc.PresignedGetObject(ctx, c.bucket, objectKey, presignTTL, nil)
+	if err != nil {
+		return "", fmt.Errorf("objectstore: presign get: %w", err)
+	}
+	return u.String(), nil
+}
+
 // Ping verifies the configured bucket is reachable, for use by /readyz.
 func (c *Client) Ping(ctx context.Context) error {
 	_, err := c.mc.BucketExists(ctx, c.bucket)

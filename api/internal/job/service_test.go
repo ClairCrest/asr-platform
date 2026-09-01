@@ -11,12 +11,19 @@ import (
 // fakeStore is an in-memory Store used to exercise Service without a real
 // database, mirroring the state-machine constraints the SQL layer enforces.
 type fakeStore struct {
-	jobs   map[uuid.UUID]Job
-	events map[uuid.UUID][]Event
+	jobs        map[uuid.UUID]Job
+	events      map[uuid.UUID][]Event
+	transcripts map[uuid.UUID]Transcript // keyed by job ID
+	segments    map[uuid.UUID][]Segment  // keyed by transcript ID
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{jobs: map[uuid.UUID]Job{}, events: map[uuid.UUID][]Event{}}
+	return &fakeStore{
+		jobs:        map[uuid.UUID]Job{},
+		events:      map[uuid.UUID][]Event{},
+		transcripts: map[uuid.UUID]Transcript{},
+		segments:    map[uuid.UUID][]Segment{},
+	}
 }
 
 func (f *fakeStore) CreateJob(_ context.Context, j Job) (Job, error) {
@@ -107,6 +114,18 @@ func (f *fakeStore) CreateEvent(_ context.Context, jobID uuid.UUID, eventType Ev
 
 func (f *fakeStore) ListEvents(_ context.Context, jobID uuid.UUID) ([]Event, error) {
 	return f.events[jobID], nil
+}
+
+func (f *fakeStore) GetTranscript(_ context.Context, jobID uuid.UUID) (Transcript, error) {
+	t, ok := f.transcripts[jobID]
+	if !ok {
+		return Transcript{}, ErrNotFound
+	}
+	return t, nil
+}
+
+func (f *fakeStore) ListSegments(_ context.Context, transcriptID uuid.UUID) ([]Segment, error) {
+	return f.segments[transcriptID], nil
 }
 
 type fakeQueue struct {
@@ -319,5 +338,48 @@ func TestServiceList(t *testing.T) {
 	}
 	if len(jobs) != 3 {
 		t.Errorf("List() returned %d jobs, want 3", len(jobs))
+	}
+}
+
+func TestServiceGetTranscript(t *testing.T) {
+	svc, store, _, _ := newTestService()
+	userID := uuid.New()
+	j, _ := svc.Create(context.Background(), CreateParams{UserID: userID, ObjectKey: "a", OriginalFilename: "a", SizeBytes: 1, Model: "small.en"})
+
+	transcriptID := uuid.New()
+	store.transcripts[j.ID] = Transcript{ID: transcriptID, JobID: j.ID, Text: "hello world", LanguageDetected: "en", LanguageProbability: 0.99}
+	store.segments[transcriptID] = []Segment{{ID: uuid.New(), TranscriptID: transcriptID, Idx: 0, StartMs: 0, EndMs: 1000, Text: "hello world"}}
+
+	_, transcript, segments, err := svc.GetTranscript(context.Background(), userID, j.ID)
+	if err != nil {
+		t.Fatalf("GetTranscript() error = %v", err)
+	}
+	if transcript.Text != "hello world" {
+		t.Errorf("GetTranscript() text = %q, want %q", transcript.Text, "hello world")
+	}
+	if len(segments) != 1 {
+		t.Errorf("GetTranscript() returned %d segments, want 1", len(segments))
+	}
+}
+
+func TestServiceGetTranscriptNotReady(t *testing.T) {
+	svc, _, _, _ := newTestService()
+	userID := uuid.New()
+	j, _ := svc.Create(context.Background(), CreateParams{UserID: userID, ObjectKey: "a", OriginalFilename: "a", SizeBytes: 1, Model: "small.en"})
+
+	if _, _, _, err := svc.GetTranscript(context.Background(), userID, j.ID); err != ErrNotFound {
+		t.Errorf("GetTranscript() before completion error = %v, want %v", err, ErrNotFound)
+	}
+}
+
+func TestServiceGetTranscriptScopedToUser(t *testing.T) {
+	svc, store, _, _ := newTestService()
+	owner := uuid.New()
+	other := uuid.New()
+	j, _ := svc.Create(context.Background(), CreateParams{UserID: owner, ObjectKey: "a", OriginalFilename: "a", SizeBytes: 1, Model: "small.en"})
+	store.transcripts[j.ID] = Transcript{ID: uuid.New(), JobID: j.ID, Text: "secret"}
+
+	if _, _, _, err := svc.GetTranscript(context.Background(), other, j.ID); err != ErrNotFound {
+		t.Errorf("GetTranscript() by non-owner error = %v, want %v", err, ErrNotFound)
 	}
 }
