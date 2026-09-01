@@ -26,7 +26,7 @@ export function JobsPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-sm font-medium text-gray-700">Upload audio</h2>
+        <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload audio</h2>
         <div className="mt-2">
           <UploadDropzone />
         </div>
@@ -34,7 +34,7 @@ export function JobsPage() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-gray-700">Jobs</h2>
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">Jobs</h2>
           <div className="flex gap-1">
             {STATUS_FILTERS.map((f) => (
               <button
@@ -42,7 +42,9 @@ export function JobsPage() {
                 type="button"
                 onClick={() => setStatus(f.value)}
                 className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                  status === f.value ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
+                  status === f.value
+                    ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                    : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
                 }`}
               >
                 {f.label}

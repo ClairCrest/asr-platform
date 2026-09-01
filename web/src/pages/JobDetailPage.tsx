@@ -74,8 +74,8 @@ export function JobDetailPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">{job.original_filename}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{job.original_filename}</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {job.model} · {formatBytes(job.size_bytes)} · created {relativeTime(job.created_at)}
           </p>
         </div>
@@ -83,33 +83,37 @@ export function JobDetailPage() {
       </div>
 
       {job.error_message && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <span className="font-medium">{job.error_code}:</span> {job.error_message}
         </div>
       )}
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 text-sm sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 text-sm sm:grid-cols-4 dark:border-gray-800 dark:bg-gray-900">
         <div>
-          <dt className="text-gray-400">Duration</dt>
-          <dd className="mt-0.5 text-gray-900">{formatDuration(job.duration_seconds)}</dd>
+          <dt className="text-gray-400 dark:text-gray-500">Duration</dt>
+          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{formatDuration(job.duration_seconds)}</dd>
         </div>
         <div>
-          <dt className="text-gray-400">Attempts</dt>
-          <dd className="mt-0.5 text-gray-900">
+          <dt className="text-gray-400 dark:text-gray-500">Attempts</dt>
+          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
             {job.attempts} / {job.max_attempts}
           </dd>
         </div>
         <div>
-          <dt className="text-gray-400">Started</dt>
-          <dd className="mt-0.5 text-gray-900">{job.started_at ? relativeTime(job.started_at) : '—'}</dd>
+          <dt className="text-gray-400 dark:text-gray-500">Started</dt>
+          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+            {job.started_at ? relativeTime(job.started_at) : '—'}
+          </dd>
         </div>
         <div>
-          <dt className="text-gray-400">Finished</dt>
-          <dd className="mt-0.5 text-gray-900">{job.finished_at ? relativeTime(job.finished_at) : '—'}</dd>
+          <dt className="text-gray-400 dark:text-gray-500">Finished</dt>
+          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+            {job.finished_at ? relativeTime(job.finished_at) : '—'}
+          </dd>
         </div>
       </dl>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm text-red-600 dark:text-red-400">{actionError}</p>}
 
       <div className="flex gap-2">
         {canCancel && (
@@ -117,7 +121,7 @@ export function JobDetailPage() {
             type="button"
             disabled={cancelMutation.isPending}
             onClick={() => cancelMutation.mutate()}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             Cancel
           </button>
@@ -127,7 +131,7 @@ export function JobDetailPage() {
             type="button"
             disabled={retryMutation.isPending}
             onClick={() => retryMutation.mutate()}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             Retry
           </button>
@@ -140,7 +144,7 @@ export function JobDetailPage() {
               deleteMutation.mutate()
             }
           }}
-          className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+          className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
         >
           Delete
         </button>
@@ -161,7 +165,7 @@ export function JobDetailPage() {
                     key={format}
                     type="button"
                     onClick={() => void downloadAs(format)}
-                    className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                   >
                     Download .{format}
                   </button>
@@ -173,7 +177,9 @@ export function JobDetailPage() {
       )}
 
       {job.status !== 'succeeded' && job.status !== 'failed' && job.status !== 'cancelled' && (
-        <p className="text-sm text-gray-400">The transcript will appear here once the job finishes.</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">
+          The transcript will appear here once the job finishes.
+        </p>
       )}
     </div>
   )

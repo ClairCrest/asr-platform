@@ -33,24 +33,24 @@ export function ApiKeysPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">API Keys</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">API Keys</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Use an API key with the <code>X-API-Key</code> header for programmatic access.
         </p>
       </div>
 
       {revealedKey && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
-          <p className="font-medium text-amber-800">
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950">
+          <p className="font-medium text-amber-800 dark:text-amber-300">
             Copy this key now — it won't be shown again.
           </p>
-          <code className="mt-2 block break-all rounded bg-white px-3 py-2 text-xs text-gray-800">
+          <code className="mt-2 block break-all rounded bg-white px-3 py-2 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200">
             {revealedKey}
           </code>
           <button
             type="button"
             onClick={() => setRevealedKey(null)}
-            className="mt-2 text-xs font-medium text-amber-700 hover:underline"
+            className="mt-2 text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
           >
             Dismiss
           </button>
@@ -63,12 +63,12 @@ export function ApiKeysPage() {
           placeholder="Key name (e.g. ci)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-400"
         />
         <button
           type="submit"
           disabled={createMutation.isPending || !name.trim()}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
         >
           Create key
         </button>
@@ -82,12 +82,12 @@ export function ApiKeysPage() {
         <EmptyState title="No API keys yet" description="Create one to access the API programmatically." />
       )}
       {keysQuery.data && keysQuery.data.length > 0 && (
-        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900">
           {keysQuery.data.map((key) => (
             <li key={key.id} className="flex items-center justify-between px-4 py-3 text-sm">
               <div>
-                <p className="font-medium text-gray-900">{key.name}</p>
-                <p className="text-xs text-gray-400">
+                <p className="font-medium text-gray-900 dark:text-gray-100">{key.name}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   Created {relativeTime(key.created_at)}
                   {key.last_used_at && ` · last used ${relativeTime(key.last_used_at)}`}
                 </p>
@@ -96,7 +96,7 @@ export function ApiKeysPage() {
                 type="button"
                 disabled={revokeMutation.isPending}
                 onClick={() => revokeMutation.mutate(key.id)}
-                className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
               >
                 Revoke
               </button>
