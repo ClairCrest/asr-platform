@@ -50,7 +50,7 @@ func run(logger *slog.Logger) error {
 	defer pool.Close()
 
 	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return err
 	}
