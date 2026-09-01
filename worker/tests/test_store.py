@@ -68,6 +68,20 @@ def test_claim_next_returns_job_and_writes_leased_event() -> None:
     assert events[0]["type"] == "leased"
 
 
+def test_renew_lease_only_touches_lease_expires_at() -> None:
+    conn = FakeConnection()
+
+    store.renew_lease(conn, "job-1")
+
+    executed = conn.all_executed()
+    assert len(executed) == 1
+    sql, params = executed[0]
+    assert "lease_expires_at" in sql
+    assert "status = 'processing'" in sql
+    assert params["id"] == "job-1"
+    assert params["lease"] == store.LEASE_DURATION_SECONDS
+
+
 def test_fail_or_retry_job_requeues_below_max_attempts() -> None:
     conn = FakeConnection()
 
