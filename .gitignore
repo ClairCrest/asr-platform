@@ -33,6 +33,10 @@ scripts/live-update-final.png
 scripts/package.json
 scripts/package-lock.json
 
+# demo recording artifacts (scripts/record-demo.mjs)
+scripts/demo-sample.wav
+scripts/demo-video/
+
 # editors / os
 .DS_Store
 Thumbs.db
