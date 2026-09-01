@@ -3,7 +3,12 @@ name = "asr-worker"
 version = "0.1.0"
 description = "English-only speech-to-text transcription worker (faster-whisper)"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "faster-whisper>=1.2.1",
+    "minio>=7.2.20",
+    "psycopg[binary]>=3.3.5",
+    "redis>=8.1.0",
+]
 
 [tool.uv.build-backend]
 module-name = "worker"
@@ -13,9 +18,19 @@ module-root = ""
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
 
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.16.5",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
