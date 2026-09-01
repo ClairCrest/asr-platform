@@ -56,3 +56,23 @@ type JobListResponse struct {
 	Jobs       []JobResponse `json:"jobs"`
 	NextCursor *string       `json:"next_cursor,omitempty"`
 }
+
+type SegmentResponse struct {
+	Idx        int32    `json:"idx"`
+	StartMs    int32    `json:"start_ms"`
+	EndMs      int32    `json:"end_ms"`
+	Text       string   `json:"text"`
+	AvgLogprob *float64 `json:"avg_logprob,omitempty"`
+}
+
+type TranscriptResponse struct {
+	Text                string            `json:"text"`
+	LanguageDetected    string            `json:"language_detected"`
+	LanguageProbability float64           `json:"language_probability"`
+	LanguageWarning     bool              `json:"language_warning"`
+	Model               string            `json:"model"`
+	ProcessingSeconds   float64           `json:"processing_seconds"`
+	RealTimeFactor      float64           `json:"real_time_factor"`
+	CreatedAt           time.Time         `json:"created_at"`
+	Segments            []SegmentResponse `json:"segments"`
+}

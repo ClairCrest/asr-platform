@@ -127,6 +127,44 @@ func (s *JobStore) ListEvents(ctx context.Context, jobID uuid.UUID) ([]job.Event
 	return out, nil
 }
 
+func (s *JobStore) GetTranscript(ctx context.Context, jobID uuid.UUID) (job.Transcript, error) {
+	row, err := s.q.GetTranscriptByJobID(ctx, jobID)
+	if err != nil {
+		return job.Transcript{}, mapNotFound(err)
+	}
+	return job.Transcript{
+		ID:                  row.ID,
+		JobID:               row.JobID,
+		Text:                row.Text,
+		LanguageDetected:    row.LanguageDetected,
+		LanguageProbability: row.LanguageProbability,
+		Model:               row.Model,
+		ProcessingSeconds:   row.ProcessingSeconds,
+		RealTimeFactor:      row.RealTimeFactor,
+		CreatedAt:           row.CreatedAt,
+	}, nil
+}
+
+func (s *JobStore) ListSegments(ctx context.Context, transcriptID uuid.UUID) ([]job.Segment, error) {
+	rows, err := s.q.ListSegmentsByTranscript(ctx, transcriptID)
+	if err != nil {
+		return nil, fmt.Errorf("jobstore: list segments: %w", err)
+	}
+	out := make([]job.Segment, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, job.Segment{
+			ID:           r.ID,
+			TranscriptID: r.TranscriptID,
+			Idx:          r.Idx,
+			StartMs:      r.StartMs,
+			EndMs:        r.EndMs,
+			Text:         r.Text,
+			AvgLogprob:   r.AvgLogprob,
+		})
+	}
+	return out, nil
+}
+
 func mapNotFound(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job.ErrNotFound

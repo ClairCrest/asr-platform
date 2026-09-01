@@ -19,6 +19,7 @@ type Deps struct {
 	JobSvc      *job.Service
 	Objects     ObjectPresigner
 	HealthCheck map[string]Checker
+	WSHandler   http.Handler
 }
 
 // NewRouter assembles the full HTTP surface described in the build plan's
@@ -35,9 +36,15 @@ func NewRouter(d Deps) http.Handler {
 	jobHandler := NewJobHandler(d.JobSvc)
 	uploadHandler := NewUploadHandler(d.Objects)
 	healthHandler := NewHealthHandler(d.HealthCheck)
+	wsTicketHandler := NewWSTicketHandler(d.Tokens)
 
 	r.Get("/healthz", healthHandler.Healthz)
 	r.Get("/readyz", healthHandler.Readyz)
+
+	// GET /ws authenticates itself via the ticket query param (see
+	// WSTicketHandler), not the bearer/API-key middleware, since a
+	// browser's WebSocket API cannot set an Authorization header.
+	r.Get("/ws", d.WSHandler.ServeHTTP)
 
 	requireAuth := middleware.RequireAuth(d.Tokens, d.AuthSvc, WriteError)
 
@@ -55,6 +62,8 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/api-keys", authHandler.ListAPIKeys)
 			r.Delete("/api-keys/{id}", authHandler.RevokeAPIKey)
 
+			r.Post("/ws-ticket", wsTicketHandler.CreateTicket)
+
 			r.Post("/uploads", uploadHandler.CreateUpload)
 
 			r.Post("/jobs", jobHandler.Create)
@@ -63,6 +72,7 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/jobs/{id}/cancel", jobHandler.Cancel)
 			r.Post("/jobs/{id}/retry", jobHandler.Retry)
 			r.Delete("/jobs/{id}", jobHandler.Delete)
+			r.Get("/jobs/{id}/transcript", jobHandler.GetTranscript)
 		})
 	})
 

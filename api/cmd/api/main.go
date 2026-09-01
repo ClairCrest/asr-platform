@@ -22,6 +22,7 @@ import (
 	"github.com/ClairCrest/asr-platform/api/internal/observability"
 	"github.com/ClairCrest/asr-platform/api/internal/queue"
 	"github.com/ClairCrest/asr-platform/api/internal/store"
+	"github.com/ClairCrest/asr-platform/api/internal/ws"
 )
 
 func main() {
@@ -75,12 +76,18 @@ func run(logger *slog.Logger) error {
 	reaper := queue.NewReaper(store.NewLeaseStore(pool), producer, logger)
 	go reaper.Run(ctx, 15*time.Second)
 
+	hub := ws.NewHub()
+	listener := ws.NewListener(pool, hub, logger)
+	go listener.Run(ctx)
+	wsHandler := ws.NewHandler(hub, tokens, logger)
+
 	router := httpapi.NewRouter(httpapi.Deps{
-		Logger:  logger,
-		AuthSvc: authSvc,
-		Tokens:  tokens,
-		JobSvc:  jobSvc,
-		Objects: objects,
+		Logger:    logger,
+		AuthSvc:   authSvc,
+		Tokens:    tokens,
+		JobSvc:    jobSvc,
+		Objects:   objects,
+		WSHandler: wsHandler,
 		HealthCheck: map[string]httpapi.Checker{
 			"postgres": func(ctx context.Context) error { return pool.Ping(ctx) },
 			"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },

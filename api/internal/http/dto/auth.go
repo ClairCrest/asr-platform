@@ -45,6 +45,10 @@ type CreateAPIKeyResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type WSTicketResponse struct {
+	Ticket string `json:"ticket"`
+}
+
 type APIKeyResponse struct {
 	ID         uuid.UUID  `json:"id"`
 	Name       string     `json:"name"`

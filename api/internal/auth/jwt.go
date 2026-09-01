@@ -18,9 +18,15 @@ var ErrInvalidToken = errors.New("auth: invalid token")
 type TokenType string
 
 const (
-	TokenTypeAccess  TokenType = "access"
-	TokenTypeRefresh TokenType = "refresh"
+	TokenTypeAccess   TokenType = "access"
+	TokenTypeRefresh  TokenType = "refresh"
+	TokenTypeWSTicket TokenType = "ws_ticket"
 )
+
+// wsTicketTTL is deliberately short: a ticket is only meant to cross the
+// gap between POST /ws-ticket and the immediately following WebSocket
+// handshake, not to serve as a general-purpose credential.
+const wsTicketTTL = 30 * time.Second
 
 type Claims struct {
 	UserID uuid.UUID `json:"user_id"`
@@ -51,6 +57,13 @@ func (i *TokenIssuer) IssueAccessToken(userID uuid.UUID) (string, error) {
 // new access token via POST /auth/refresh.
 func (i *TokenIssuer) IssueRefreshToken(userID uuid.UUID) (string, error) {
 	return i.issue(userID, TokenTypeRefresh, i.refreshTokenTTL)
+}
+
+// IssueWSTicket returns a short-lived, single-purpose token for
+// authenticating the GET /ws handshake, where a browser's WebSocket API
+// cannot set an Authorization header.
+func (i *TokenIssuer) IssueWSTicket(userID uuid.UUID) (string, error) {
+	return i.issue(userID, TokenTypeWSTicket, wsTicketTTL)
 }
 
 func (i *TokenIssuer) issue(userID uuid.UUID, typ TokenType, ttl time.Duration) (string, error) {

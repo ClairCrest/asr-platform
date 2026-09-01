@@ -28,6 +28,9 @@ type Store interface {
 
 	CreateEvent(ctx context.Context, jobID uuid.UUID, eventType EventType, payload []byte) (Event, error)
 	ListEvents(ctx context.Context, jobID uuid.UUID) ([]Event, error)
+
+	GetTranscript(ctx context.Context, jobID uuid.UUID) (Transcript, error)
+	ListSegments(ctx context.Context, transcriptID uuid.UUID) ([]Segment, error)
 }
 
 // Queue is the outbound boundary to the job stream. Enqueue is called once
@@ -125,6 +128,26 @@ func (s *Service) Get(ctx context.Context, userID, jobID uuid.UUID) (Job, []Even
 		return Job{}, nil, fmt.Errorf("job: list events: %w", err)
 	}
 	return j, events, nil
+}
+
+// GetTranscript returns the finished transcript and its segments for a
+// job, scoped to userID. It returns ErrNotFound both when the job itself
+// does not exist for this user and when it exists but has not produced a
+// transcript yet (still processing, or failed).
+func (s *Service) GetTranscript(ctx context.Context, userID, jobID uuid.UUID) (Transcript, []Segment, error) {
+	if _, err := s.store.GetJob(ctx, jobID, userID); err != nil {
+		return Transcript{}, nil, err
+	}
+
+	t, err := s.store.GetTranscript(ctx, jobID)
+	if err != nil {
+		return Transcript{}, nil, err
+	}
+	segments, err := s.store.ListSegments(ctx, t.ID)
+	if err != nil {
+		return Transcript{}, nil, fmt.Errorf("job: list segments: %w", err)
+	}
+	return t, segments, nil
 }
 
 // List returns a page of jobs for userID, newest first, optionally filtered
