@@ -72,6 +72,9 @@ func run(logger *slog.Logger) error {
 	producer := queue.NewProducer(rdb)
 	jobSvc := job.NewService(store.NewJobStore(pool), producer, objects)
 
+	reaper := queue.NewReaper(store.NewLeaseStore(pool), producer, logger)
+	go reaper.Run(ctx, 15*time.Second)
+
 	router := httpapi.NewRouter(httpapi.Deps{
 		Logger:  logger,
 		AuthSvc: authSvc,
