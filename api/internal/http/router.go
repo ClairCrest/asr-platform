@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 
 	"github.com/ClairCrest/asr-platform/api/internal/auth"
 	"github.com/ClairCrest/asr-platform/api/internal/http/middleware"
@@ -13,13 +14,15 @@ import (
 )
 
 type Deps struct {
-	Logger      *slog.Logger
-	AuthSvc     *auth.Service
-	Tokens      *auth.TokenIssuer
-	JobSvc      *job.Service
-	Objects     ObjectPresigner
-	HealthCheck map[string]Checker
-	WSHandler   http.Handler
+	Logger             *slog.Logger
+	AuthSvc            *auth.Service
+	Tokens             *auth.TokenIssuer
+	JobSvc             *job.Service
+	Objects            ObjectPresigner
+	AudioPresigner     AudioPresigner
+	HealthCheck        map[string]Checker
+	WSHandler          http.Handler
+	CORSAllowedOrigins []string
 }
 
 // NewRouter assembles the full HTTP surface described in the build plan's
@@ -31,9 +34,17 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(observability.RequestIDMiddleware)
 	r.Use(observability.RequestLogger(d.Logger))
 	r.Use(observability.Recoverer(d.Logger))
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   d.CORSAllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "DELETE"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-API-Key", "Idempotency-Key"},
+		ExposedHeaders:   []string{"X-Request-Id"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 
 	authHandler := NewAuthHandler(d.AuthSvc)
-	jobHandler := NewJobHandler(d.JobSvc)
+	jobHandler := NewJobHandler(d.JobSvc, d.AudioPresigner)
 	uploadHandler := NewUploadHandler(d.Objects)
 	healthHandler := NewHealthHandler(d.HealthCheck)
 	wsTicketHandler := NewWSTicketHandler(d.Tokens)

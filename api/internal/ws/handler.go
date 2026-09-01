@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/coder/websocket"
@@ -18,13 +19,26 @@ const writeTimeout = 5 * time.Second
 // browser's WebSocket API cannot set an Authorization header, so the
 // ticket exists to cross that gap.
 type Handler struct {
-	hub    *Hub
-	tokens *auth.TokenIssuer
-	logger *slog.Logger
+	hub            *Hub
+	tokens         *auth.TokenIssuer
+	logger         *slog.Logger
+	originPatterns []string
 }
 
-func NewHandler(hub *Hub, tokens *auth.TokenIssuer, logger *slog.Logger) *Handler {
-	return &Handler{hub: hub, tokens: tokens, logger: logger}
+// NewHandler builds a WebSocket handler. allowedOrigins are full origin
+// URLs (e.g. "http://localhost:5173", matching CORS_ALLOWED_ORIGINS) —
+// coder/websocket's own origin check is separate from the CORS middleware
+// (it guards the upgrade itself, which CORS preflight never covers), so
+// without this every cross-origin browser client is rejected with a 403
+// even though ordinary REST calls succeed.
+func NewHandler(hub *Hub, tokens *auth.TokenIssuer, logger *slog.Logger, allowedOrigins []string) *Handler {
+	patterns := make([]string, 0, len(allowedOrigins))
+	for _, origin := range allowedOrigins {
+		if u, err := url.Parse(origin); err == nil && u.Host != "" {
+			patterns = append(patterns, u.Host)
+		}
+	}
+	return &Handler{hub: hub, tokens: tokens, logger: logger, originPatterns: patterns}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +49,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := websocket.Accept(w, r, nil)
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: h.originPatterns})
 	if err != nil {
 		h.logger.Warn("ws: accept failed", "error", err)
 		return

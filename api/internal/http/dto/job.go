@@ -21,6 +21,7 @@ type CreateUploadResponse struct {
 type CreateJobRequest struct {
 	ObjectKey        string `json:"object_key"`
 	OriginalFilename string `json:"original_filename"`
+	SizeBytes        int64  `json:"size_bytes"`
 	Model            string `json:"model,omitempty"`
 }
 
@@ -66,6 +67,7 @@ type SegmentResponse struct {
 }
 
 type TranscriptResponse struct {
+	AudioURL            string            `json:"audio_url"`
 	Text                string            `json:"text"`
 	LanguageDetected    string            `json:"language_detected"`
 	LanguageProbability float64           `json:"language_probability"`

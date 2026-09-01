@@ -350,7 +350,7 @@ func TestServiceGetTranscript(t *testing.T) {
 	store.transcripts[j.ID] = Transcript{ID: transcriptID, JobID: j.ID, Text: "hello world", LanguageDetected: "en", LanguageProbability: 0.99}
 	store.segments[transcriptID] = []Segment{{ID: uuid.New(), TranscriptID: transcriptID, Idx: 0, StartMs: 0, EndMs: 1000, Text: "hello world"}}
 
-	transcript, segments, err := svc.GetTranscript(context.Background(), userID, j.ID)
+	_, transcript, segments, err := svc.GetTranscript(context.Background(), userID, j.ID)
 	if err != nil {
 		t.Fatalf("GetTranscript() error = %v", err)
 	}
@@ -367,7 +367,7 @@ func TestServiceGetTranscriptNotReady(t *testing.T) {
 	userID := uuid.New()
 	j, _ := svc.Create(context.Background(), CreateParams{UserID: userID, ObjectKey: "a", OriginalFilename: "a", SizeBytes: 1, Model: "small.en"})
 
-	if _, _, err := svc.GetTranscript(context.Background(), userID, j.ID); err != ErrNotFound {
+	if _, _, _, err := svc.GetTranscript(context.Background(), userID, j.ID); err != ErrNotFound {
 		t.Errorf("GetTranscript() before completion error = %v, want %v", err, ErrNotFound)
 	}
 }
@@ -379,7 +379,7 @@ func TestServiceGetTranscriptScopedToUser(t *testing.T) {
 	j, _ := svc.Create(context.Background(), CreateParams{UserID: owner, ObjectKey: "a", OriginalFilename: "a", SizeBytes: 1, Model: "small.en"})
 	store.transcripts[j.ID] = Transcript{ID: uuid.New(), JobID: j.ID, Text: "secret"}
 
-	if _, _, err := svc.GetTranscript(context.Background(), other, j.ID); err != ErrNotFound {
+	if _, _, _, err := svc.GetTranscript(context.Background(), other, j.ID); err != ErrNotFound {
 		t.Errorf("GetTranscript() by non-owner error = %v, want %v", err, ErrNotFound)
 	}
 }

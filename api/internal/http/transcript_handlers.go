@@ -29,7 +29,7 @@ func (h *JobHandler) GetTranscript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transcript, segments, err := h.svc.GetTranscript(r.Context(), userID, jobID)
+	j, transcript, segments, err := h.svc.GetTranscript(r.Context(), userID, jobID)
 	if err != nil {
 		writeJobError(w, r, err)
 		return
@@ -42,7 +42,14 @@ func (h *JobHandler) GetTranscript(w http.ResponseWriter, r *http.Request) {
 
 	switch format {
 	case "json":
-		WriteJSON(w, http.StatusOK, toTranscriptResponse(transcript, segments))
+		audioURL, err := h.objects.PresignGetURL(r.Context(), j.ObjectKey)
+		if err != nil {
+			WriteError(w, r, http.StatusInternalServerError, "internal_error", "could not create playback url")
+			return
+		}
+		resp := toTranscriptResponse(transcript, segments)
+		resp.AudioURL = audioURL
+		WriteJSON(w, http.StatusOK, resp)
 	case "txt":
 		writeText(w, "text/plain; charset=utf-8", transcript.Text)
 	case "srt":

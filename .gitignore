@@ -20,6 +20,13 @@ worker/*.egg-info/
 # node
 web/node_modules/
 web/dist/
+scripts/node_modules/
+
+# manual UI verification artifacts (scripts/ui-smoke.mjs)
+scripts/screenshots/
+scripts/sample-speech.wav
+scripts/package.json
+scripts/package-lock.json
 
 # editors / os
 .DS_Store

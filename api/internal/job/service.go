@@ -130,24 +130,26 @@ func (s *Service) Get(ctx context.Context, userID, jobID uuid.UUID) (Job, []Even
 	return j, events, nil
 }
 
-// GetTranscript returns the finished transcript and its segments for a
-// job, scoped to userID. It returns ErrNotFound both when the job itself
-// does not exist for this user and when it exists but has not produced a
+// GetTranscript returns the job (so the caller can presign playback of
+// its source object), the finished transcript, and its segments, scoped
+// to userID. It returns ErrNotFound both when the job itself does not
+// exist for this user and when it exists but has not produced a
 // transcript yet (still processing, or failed).
-func (s *Service) GetTranscript(ctx context.Context, userID, jobID uuid.UUID) (Transcript, []Segment, error) {
-	if _, err := s.store.GetJob(ctx, jobID, userID); err != nil {
-		return Transcript{}, nil, err
+func (s *Service) GetTranscript(ctx context.Context, userID, jobID uuid.UUID) (Job, Transcript, []Segment, error) {
+	j, err := s.store.GetJob(ctx, jobID, userID)
+	if err != nil {
+		return Job{}, Transcript{}, nil, err
 	}
 
 	t, err := s.store.GetTranscript(ctx, jobID)
 	if err != nil {
-		return Transcript{}, nil, err
+		return Job{}, Transcript{}, nil, err
 	}
 	segments, err := s.store.ListSegments(ctx, t.ID)
 	if err != nil {
-		return Transcript{}, nil, fmt.Errorf("job: list segments: %w", err)
+		return Job{}, Transcript{}, nil, fmt.Errorf("job: list segments: %w", err)
 	}
-	return t, segments, nil
+	return j, t, segments, nil
 }
 
 // List returns a page of jobs for userID, newest first, optionally filtered

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -12,12 +13,19 @@ import (
 	"github.com/ClairCrest/asr-platform/api/internal/job"
 )
 
-type JobHandler struct {
-	svc *job.Service
+// AudioPresigner is the subset of objectstore.Client the transcript
+// handler needs to hand the dashboard's audio player a playable URL.
+type AudioPresigner interface {
+	PresignGetURL(ctx context.Context, objectKey string) (string, error)
 }
 
-func NewJobHandler(svc *job.Service) *JobHandler {
-	return &JobHandler{svc: svc}
+type JobHandler struct {
+	svc     *job.Service
+	objects AudioPresigner
+}
+
+func NewJobHandler(svc *job.Service, objects AudioPresigner) *JobHandler {
+	return &JobHandler{svc: svc, objects: objects}
 }
 
 func (h *JobHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +53,7 @@ func (h *JobHandler) Create(w http.ResponseWriter, r *http.Request) {
 		UserID:           userID,
 		ObjectKey:        req.ObjectKey,
 		OriginalFilename: req.OriginalFilename,
+		SizeBytes:        req.SizeBytes,
 		Model:            model,
 	}
 	if key := r.Header.Get("Idempotency-Key"); key != "" {

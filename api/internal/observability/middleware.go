@@ -85,3 +85,11 @@ func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
 }
+
+// Unwrap lets http.ResponseController see through this wrapper to the
+// underlying ResponseWriter's http.Hijacker, which the WebSocket upgrade
+// in internal/ws needs. Without it, GET /ws fails since this middleware
+// sits in front of every route.
+func (w *statusWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
