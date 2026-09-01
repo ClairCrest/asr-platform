@@ -2,7 +2,7 @@
 
 Self-hosted, English-only speech-to-text transcription service. Upload
 an audio file, watch it queue and transcribe, read the finished
-transcript with clickable timestamps — no third-party API in the
+transcript with clickable timestamps. No third-party API sits in the
 critical path.
 
 A Go control plane owns state, delivery guarantees, and the API
@@ -12,11 +12,11 @@ updating live over WebSocket, with no page refresh. The whole thing
 autoscales on queue depth and ships with real Prometheus metrics and a
 Grafana dashboard, not just health checks.
 
-![Upload an audio file, watch it queue and transcribe with the status updating live over WebSocket, then read the finished transcript with an audio player and clickable segment timestamps — no page refresh anywhere in this recording](docs/images/demo.gif)
+![Upload an audio file, watch it queue and transcribe with the status updating live over WebSocket, then read the finished transcript with an audio player and clickable segment timestamps. No page refresh anywhere in this recording.](docs/images/demo.gif)
 
 ## Architecture
 
-![Architecture diagram — see docs/architecture.md for the full explanation](docs/images/architecture.svg)
+![Architecture diagram. See docs/architecture.md for the full explanation.](docs/images/architecture.svg)
 
 The Go `api` never loads a transcription model; the Python `worker`
 never terminates an HTTP request. Full reasoning, the queue's delivery
@@ -27,13 +27,13 @@ Individual design decisions are in **[docs/adr/](docs/adr/)**.
 ## How data flows through it
 
 1. **Upload.** The browser asks the API for a presigned MinIO URL
-   (`POST /uploads`), then `PUT`s the audio file straight to MinIO —
-   the file's bytes never pass through the API process. See
+   (`POST /uploads`), then `PUT`s the audio file straight to MinIO.
+   The file's bytes never pass through the API process. See
    [ADR 0005](docs/adr/0005-presigned-uploads.md) for why.
 2. **Create the job.** Once the upload succeeds, the browser calls
    `POST /jobs` with the object key. The API writes a `jobs` row
    (`status = queued`), appends a `job_events` row, and pushes the job
-   ID onto a Redis Stream — in that order, so a worker can never see a
+   ID onto a Redis Stream, in that order, so a worker can never see a
    job in the queue before the database agrees it exists.
 3. **Claim and transcribe.** A worker reads from the stream via a
    consumer group, downloads the audio from MinIO, and runs
@@ -42,13 +42,13 @@ Individual design decisions are in **[docs/adr/](docs/adr/)**.
    file is still processing.
 4. **Write the result.** On success the worker writes the transcript
    and segment timestamps to Postgres and marks the job `succeeded`
-   (or `failed` with a machine-readable `error_code` on failure) — one
+   (or `failed` with a machine-readable `error_code` on failure), one
    more `job_events` row either way.
 5. **Live update, no polling.** Every `job_events` insert fires a
    Postgres `NOTIFY`. The API's WebSocket hub is subscribed via
    `LISTEN` and fans the event straight out to any dashboard tab
-   watching that job — the worker never calls the API directly; the
-   two only ever communicate through Postgres and Redis.
+   watching that job. The worker never calls the API directly; the two
+   only ever communicate through Postgres and Redis.
 6. **Read the transcript.** The dashboard's job detail view re-renders
    the moment that WebSocket message arrives: status flips to
    *Succeeded*, the transcript appears with an audio player and
@@ -56,13 +56,13 @@ Individual design decisions are in **[docs/adr/](docs/adr/)**.
 
 If a worker is killed mid-job (crash, pod eviction, `kill -9`), the
 lease in step 3 expires, the reaper flips the job back to `queued`,
-and any live worker picks it up again — verified in phases 2 and 4 by
-actually killing one. Full version of this walkthrough, plus the
-delivery-guarantee reasoning: **[docs/architecture.md](docs/architecture.md)**.
+and any live worker picks it up again. This was verified in phases 2
+and 4 by actually killing one. Full version of this walkthrough, plus
+the delivery-guarantee reasoning: **[docs/architecture.md](docs/architecture.md)**.
 
 ## Running it
 
-### Option A — Kubernetes (recommended, shows the whole system)
+### Option A: Kubernetes (recommended, shows the whole system)
 
 ```bash
 git clone https://github.com/ClairCrest/asr-platform.git && cd asr-platform
@@ -74,8 +74,8 @@ make kind-up
 [`kind`](https://kind.sigs.k8s.io/) cluster, installs ingress-nginx and
 KEDA, applies the Kustomize `local` overlay (Postgres, Redis, MinIO,
 the API, workers, the dashboard, Prometheus, Grafana), and runs
-migrations as an init container — cold to running with one command,
-a few minutes the first time while images build.
+migrations as an init container. It goes from cold to running with one
+command, taking a few minutes the first time while images build.
 
 Once it's done:
 
@@ -90,7 +90,7 @@ Once it's done:
 
 Requires Docker, [`kind`](https://kind.sigs.k8s.io/), and `kubectl`.
 
-### Option B — Docker Compose + local processes (faster to start, no Kubernetes)
+### Option B: Docker Compose + local processes (faster to start, no Kubernetes)
 
 ```bash
 git clone https://github.com/ClairCrest/asr-platform.git && cd asr-platform
@@ -99,10 +99,10 @@ make up && make migrate-up      # Postgres, Redis, MinIO via Docker Compose
 ```
 
 Then, **in three separate terminals**, each needs the same `.env` file
-exported into its shell first — `go run` and `uv run` don't load
-`.env` automatically the way Docker Compose does, so skipping this
-step (`set -a && source .env && set +a`) is the single most common
-cause of `ERR_CONNECTION_REFUSED`:
+exported into its shell first. `go run` and `uv run` don't load `.env`
+automatically the way Docker Compose does, so skipping this step
+(`set -a && source .env && set +a`) is the single most common cause of
+`ERR_CONNECTION_REFUSED`:
 
 ```bash
 # terminal 1
@@ -113,7 +113,7 @@ cd api && go run ./cmd/api
 set -a && source .env && set +a
 cd worker && uv run python -m worker.main
 
-# terminal 3 (does not need .env — Vite reads web/.env or falls back
+# terminal 3 (does not need .env; Vite reads web/.env or falls back
 # to VITE_API_URL's default of http://localhost:8080)
 cd web && npm install && npm run dev
 ```
@@ -126,12 +126,12 @@ cd web && npm install && npm run dev
 
 Requires Docker, Go 1.23+, Python 3.11+ with [`uv`](https://docs.astral.sh/uv/),
 Node.js, and the [`golang-migrate`](https://github.com/golang-migrate/migrate)
-CLI (only `migrate-up`/`migrate-down` need it — the `kind-up` path
-runs migrations itself).
+CLI (only `migrate-up`/`migrate-down` need it; the `kind-up` path runs
+migrations itself).
 
 ### Using the dashboard once it's up
 
-1. Go to `/register`, create an account (email + password — single
+1. Go to `/register`, create an account (email and password; single
    user, no orgs or invites in this project).
 2. On `/jobs`, pick an audio file and upload it. It appears in the
    table immediately with status `queued`.
@@ -139,7 +139,7 @@ runs migrations itself).
    `failed`) live, over the same WebSocket connection, with zero
    polling and zero page reloads.
 4. Once `succeeded`, the transcript renders below with an inline audio
-   player and clickable timestamps — clicking a segment seeks the
+   player and clickable timestamps. Clicking a segment seeks the
    player to that point.
 
 ## Tech stack
@@ -160,40 +160,41 @@ runs migrations itself).
 | Quality | golangci-lint, ruff, oxlint, pytest, go test |
 
 `internal/store/db` is hand-written to match what `sqlc` would generate
-rather than actually generated — the dev sandbox this was built in has
+rather than actually generated. The dev sandbox this was built in has
 no working `cgo` toolchain, which `sqlc` needs. `sqlc.yaml` and
 `internal/store/queries/*.sql` are still the intended source of truth;
 see [ADR 0001](docs/adr/0001-hand-written-store-layer.md).
 
 ## What this is not
 
-- No model fine-tuning — inference only, on a pretrained English model.
+- No model fine-tuning. Inference only, on a pretrained English model.
 - No Thai or multilingual support. English audio only, and the
   dashboard says so with a visible warning when a transcript's detected
   language confidence drops below 50%, rather than silently returning a
   transcript that might be wrong.
 - No speaker diarization, streaming transcription, billing, or
-  multi-tenant orgs in v1 — see [`ASR-PLATFORM-PLAN.md`](./ASR-PLATFORM-PLAN.md#9-future-work-to-list-in-the-readme-not-to-build)
+  multi-tenant orgs in v1. See [`ASR-PLATFORM-PLAN.md`](./ASR-PLATFORM-PLAN.md#9-future-work-to-list-in-the-readme-not-to-build)
   for the full list of what's deliberately out of scope.
 
 ## Verified, not just built
 
 Every phase of this project was checked against a real running system,
-not just "the code compiles" — and where that surfaced a real bug, the
-bug and the fix are in the corresponding commit and, for the
+not just "the code compiles." Where that surfaced a real bug, the bug
+and the fix are in the corresponding commit and, for the
 architecture-level ones, in `docs/adr/`. A few examples:
 
 - A 50-job burst against a real `kind` cluster scaled the worker
-  Deployment 1→8→1 via KEDA, drained the queue in 76.3s, and held a
-  submission p95 of 820ms — see [`docs/benchmarks.md`](docs/benchmarks.md)
-  and the Grafana panel it links.
-- Force-killing a worker pod mid-transcription, twice — once locally in
-  phase 2, once against Kubernetes in phase 4 — and confirming the
-  reaper requeued the job and a replacement worker finished it, with the
-  correct transcript intact.
-- A real headless-browser run of the full register → upload →
-  transcribe → view-transcript flow, with zero console errors, is what
-  the GIF above actually is — not a mockup.
+  Deployment from 1 to 8 and back to 1 via KEDA, drained the queue in
+  76.3s, and held a submission p95 of 820ms. See
+  [`docs/benchmarks.md`](docs/benchmarks.md) and the Grafana panel it
+  links.
+- Force-killing a worker pod mid-transcription, twice (once locally in
+  phase 2, once against Kubernetes in phase 4), and confirming the
+  reaper requeued the job and a replacement worker finished it, with
+  the correct transcript intact.
+- A real headless-browser run of the full register, upload,
+  transcribe, view-transcript flow, with zero console errors, is what
+  the GIF above actually is. Not a mockup.
 
 ## Repository layout
 
@@ -207,4 +208,4 @@ docs/     architecture notes, ADRs, benchmarks
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT. See [`LICENSE`](./LICENSE).
