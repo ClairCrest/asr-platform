@@ -1,0 +1,21 @@
+[project]
+name = "asr-worker"
+version = "0.1.0"
+description = "English-only speech-to-text transcription worker (faster-whisper)"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv.build-backend]
+module-name = "worker"
+module-root = ""
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
