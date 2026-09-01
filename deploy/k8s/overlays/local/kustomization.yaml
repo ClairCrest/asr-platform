@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Presigned URLs must be signed against a host the browser can actually
+# reach — base's S3_ENDPOINT (minio:9000) is cluster-internal DNS. The
+# Ingress in base/ingress.yaml exposes MinIO at /asr-audio on the same
+# host kind maps to localhost:8080 (see deploy/kind-cluster.yaml), so
+# that's what presigning needs to use here.
+configMapGenerator:
+  - name: asr-config
+    namespace: asr-platform
+    behavior: merge
+    literals:
+      - S3_PUBLIC_ENDPOINT=localhost:8080
+
+# `make kind-up` builds these tags locally and `kind load docker-image`s
+# them straight into the cluster's node — there is no registry to pull
+# from, so every image needs imagePullPolicy: Never or the kubelet will
+# sit in ImagePullBackOff trying anyway.
+patches:
+  - target:
+      kind: Deployment
+      name: api
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: add
+        path: /spec/template/spec/initContainers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      kind: Deployment
+      name: worker
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never

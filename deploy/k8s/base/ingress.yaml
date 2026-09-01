@@ -1,0 +1,63 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: asr-platform
+  namespace: asr-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # api, ws, and the probe endpoints all live outside /api/v1 on
+          # purpose (see PLAN.md section 4), so each needs its own path
+          # rule rather than one prefix catching all of them.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+          - path: /readyz
+            pathType: Exact
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+          # Presigned upload/playback URLs are signed against
+          # S3_PUBLIC_ENDPOINT (see api/internal/config and
+          # objectstore.Client) and use MinIO's path-style addressing —
+          # /{bucket}/{object}?X-Amz-... — so this path must match
+          # configmap.yaml's S3_BUCKET, "asr-audio".
+          - path: /asr-audio
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080

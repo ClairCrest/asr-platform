@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Cloud images come from a real registry, built and pushed by CI with a
+# tag per commit — set the actual registry/tag at deploy time, e.g.:
+#   kustomize edit set image asr-api=ghcr.io/clairecrest/asr-api:$SHA
+images:
+  - name: asr-api:local
+    newName: asr-api
+    newTag: latest
+  - name: asr-worker:local
+    newName: asr-worker
+    newTag: latest
+  - name: asr-web:local
+    newName: asr-web
+    newTag: latest
+
+patches:
+  # Real DNS + TLS instead of localhost. host/cert-manager annotations
+  # are placeholders — point them at the real domain and issuer before
+  # applying this overlay anywhere but a scratch cluster.
+  - target:
+      kind: Ingress
+      name: asr-platform
+    patch: |
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: ["asr.example.com"]
+            secretName: asr-platform-tls
+      - op: add
+        path: /spec/rules/0/host
+        value: asr.example.com
+
+  # Phase 5 adds KEDA + a CPU-based HPA fallback for worker autoscaling
+  # (see PLAN.md phase 5) — replicas bump here is a placeholder floor,
+  # not a substitute for that.
+  - target:
+      kind: Deployment
+      name: api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2

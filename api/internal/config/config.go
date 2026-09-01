@@ -23,6 +23,15 @@ type Config struct {
 	S3SecretKey string
 	S3Bucket    string
 	S3UseSSL    bool
+	// S3PublicEndpoint is the host presigned upload/download URLs are
+	// signed against. It must be reachable by whoever holds the URL — a
+	// browser, not the API pod — which differs from S3Endpoint whenever
+	// MinIO isn't itself exposed on the same address the API reaches it
+	// at internally (true of every deploy/k8s environment, where the API
+	// talks to MinIO over the cluster network but a browser can only
+	// reach it through the Ingress). Defaults to S3Endpoint, which is
+	// correct for docker-compose local dev where both are the same host.
+	S3PublicEndpoint string
 
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
@@ -68,6 +77,7 @@ func Load() (Config, error) {
 	if cfg.S3UseSSL, err = requireEnvBool("S3_USE_SSL"); err != nil {
 		return Config{}, err
 	}
+	cfg.S3PublicEndpoint = optionalEnv("S3_PUBLIC_ENDPOINT", cfg.S3Endpoint)
 	if cfg.JWTSecret, err = requireEnv("JWT_SECRET"); err != nil {
 		return Config{}, err
 	}
@@ -92,6 +102,16 @@ func requireEnv(key string) (string, error) {
 		return "", fmt.Errorf("config: missing required env var %s", key)
 	}
 	return v, nil
+}
+
+// optionalEnv returns the env var if set and non-empty, else fallback.
+// Used only for values with a genuinely safe default — everything else
+// goes through requireEnv so a missing var fails at startup, not later.
+func optionalEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 func requireEnvBool(key string) (bool, error) {
